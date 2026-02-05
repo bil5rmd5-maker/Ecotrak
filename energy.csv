@@ -1,3 +1,11 @@
-Date,Product,Sales,Stock_Level,Ordering_Cost,Holding_Cost,Lead_Time
-2026-02-01,Hand sanitizer ,50,200,150,5,3
-2026-02-02,Gauze roll ,5,20,500,50,10
+Date,Product,Sales,Stock,Cost_S,Cost_H
+2026-02-01,Product_A,20,150,100,5
+2026-02-02,Product_A,25,125,100,5
+2026-02-03,Product_A,30,95,100,5
+2026-02-04,Product_A,22,73,100,5
+2026-02-05,Product_A,28,45,100,5
+2026-02-01,Product_B,5,50,300,20
+2026-02-02,Product_B,7,43,300,20
+2026-02-03,Product_B,4,39,300,20
+2026-02-04,Product_B,6,33,300,20
+2026-02-05,Product_B,8,25,300,20
