@@ -2,62 +2,53 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
 
-st.set_page_config(page_title="Ecotrak Pro", layout="wide", page_icon="📈")
+st.set_page_config(page_title="Ecotrak Pro", layout="wide")
+st.title("📦 Ecotrak: نظام إدارة المخزون الذكي")
 
-# واجهة المستخدم الاحترافية
-st.sidebar.title("🎮 لوحة التحكم")
-st.sidebar.info("مشروع Ecotrak لتحسين سلاسل الإمداد باستخدام الهندسة الصناعية")
-
-# تحميل البيانات
-@st.cache_data
-def load_data():
-    try:
-        df = pd.read_csv('energy.csv')
-        df['Date'] = pd.to_datetime(df['Date'])
-        return df
-    except:
-        st.error("يرجى التأكد من رفع ملف energy.csv بشكل صحيح")
-        return pd.DataFrame()
-
-df = load_data()
-
-if not df.empty:
-    # فلترة المنتجات
-    product = st.sidebar.selectbox("اختر المنتج", df['Product'].unique())
-    p_data = df[df['Product'] == product].sort_values('Date')
-
-    st.title(f"📊 تحليل منتج: {product}")
+# قراءة البيانات
+try:
+    df = pd.read_csv('energy.csv')
+    df['Date'] = pd.to_datetime(df['Date']) # تحويل التاريخ لصيغة صحيحة
     
-    # الحسابات الهندسية
-    avg_demand = p_data['Sales'].mean()
-    S = p_data['Ordering_Cost'].iloc[-1]
-    H = p_data['Holding_Cost'].iloc[-1]
-    eoq = np.sqrt((2 * avg_demand * 365 * S) / H)
-    
-    # عرض المؤشرات (KPIs)
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("المخزون الحالي", f"{p_data['Stock_Level'].iloc[-1]} وحدة")
-    c2.metric("متوسط المبيعات", f"{avg_demand:.1f}")
-    c3.metric("كمية الطلب المثالية (EOQ)", f"{int(eoq)}")
-    
-    status = "آمن ✅" if p_data['Stock_Level'].iloc[-1] > 50 else "خطر 🚨"
-    c4.metric("حالة المخزون", status)
+    # قائمة اختيار المنتج في الجانب
+    st.sidebar.header("لوحة التحكم")
+    all_products = df['Product'].unique()
+    selected_product = st.sidebar.selectbox("اختر المنتج للمعالجة:", all_products)
+
+    # تصفية البيانات حسب المنتج المختار
+    filtered_df = df[df['Product'] == selected_product].sort_values('Date')
+
+    # الحسابات الهندسية (EOQ)
+    avg_sales = filtered_df['Sales'].mean()
+    S = filtered_df['Cost_S'].iloc[0]
+    H = filtered_df['Cost_H'].iloc[0]
+    eoq = np.sqrt((2 * avg_sales * 365 * S) / H)
+
+    # عرض الأرقام الرئيسية
+    col1, col2, col3 = st.columns(3)
+    col1.metric("متوسط المبيعات اليومية", f"{avg_sales:.1f}")
+    col2.metric("الكمية المثالية للطلب (EOQ)", f"{int(eoq)} وحدة")
+    col3.metric("المخزون الحالي", f"{filtered_df['Stock'].iloc[-1]}")
+
+    st.divider()
 
     # الرسوم البيانية
-    st.markdown("---")
-    col_left, col_right = st.columns(2)
-    
-    with col_left:
-        st.subheader("📈 حركة المبيعات اليومية")
-        fig_sales = px.line(p_data, x='Date', y='Sales', markers=True)
-        st.plotly_chart(fig_sales, use_container_width=True)
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.subheader("📈 اتجاه المبيعات")
+        st.line_chart(filtered_df.set_index('Date')['Sales'])
         
-    with col_right:
-        st.subheader("📦 مستويات المخزون")
-        fig_stock = px.area(p_data, x='Date', y='Stock_Level', color_discrete_sequence=['#ff4b4b'])
-        st.plotly_chart(fig_stock, use_container_width=True)
+    with col_b:
+        st.subheader("📉 مستويات المخزون")
+        st.area_chart(filtered_df.set_index('Date')['Stock'])
 
-    # جدول التوصية الهندسية
-    st.info(f"💡 نصيحة مهندس: بناءً على تكلفة التخزين ({H} ريال)، يُنصح بطلب {int(eoq)} وحدة في كل شحنة لتقليل التكاليف الإجمالية.")
+    # تنبيه ذكي
+    if filtered_df['Stock'].iloc[-1] < 50:
+        st.error(f"⚠️ تنبيه: مخزون {selected_product} منخفض جداً! يرجى طلب {int(eoq)} وحدة.")
+    else:
+        st.success(f"✅ وضع المخزون لـ {selected_product} مستقر.")
+
+except Exception as e:
+    st.error(f"حدث خطأ في قراءة البيانات: {e}")
+    st.info("تأكد من رفع ملف energy.csv بشكل صحيح")
