@@ -4,87 +4,77 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 
-# إعدادات واجهة المستخدم الاحترافية
-st.set_page_config(page_title="Ecotrak Pro AI", layout="wide", page_icon="🤖")
+st.set_page_config(page_title="Ecotrak Pro AI", layout="wide", page_icon="🚀")
 
-# تصميم الثيم وتنسيق الصفحة
-st.markdown("""
-    <style>
-    .main { background-color: #f5f7f9; }
-    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    </style>
-    """, unsafe_allow_html=True)
-
-st.title("🚀 Ecotrak AI: مستقبل إدارة سلاسل الإمداد")
+# واجهة مستخدم احترافية
+st.title("🚀 Ecotrak AI: نظام دعم القرار اللحظي")
 st.markdown("---")
 
-# دالة ذكية لجلب البيانات وتجهيزها
-@st.cache_data
-def load_data():
-    df = pd.read_csv('energy.csv')
-    df['Date'] = pd.to_datetime(df['Date'])
-    # إضافة أعمدة مالية افتراضية للعرض الاحترافي
-    if 'Price' not in df.columns:
-        df['Price'] = 150 # سعر بيع افتراضي
-    return df
+# وظيفة تحميل البيانات الافتراضية
+def get_default_data():
+    data = {
+        'Product': ['منتج A', 'منتج B', 'منتج C'],
+        'Sales': [25, 10, 50],
+        'Stock': [150, 40, 300],
+        'Cost_S': [100, 250, 80], # تكلفة الطلب
+        'Cost_H': [5, 15, 2],    # تكلفة التخزين
+        'Price': [150, 1200, 45] # سعر البيع
+    }
+    return pd.DataFrame(data)
 
-try:
-    df = load_data()
-    
-    # القائمة الجانبية الذكية
-    st.sidebar.image("https://cdn-icons-png.flaticon.com/512/2649/2649223.png", width=100)
-    st.sidebar.header("🕹️ لوحة التحكم")
-    product = st.sidebar.selectbox("اختر المنتج لتحليله:", df['Product'].unique())
-    
-    # فلترة البيانات بناءً على المنتج
-    p_data = df[df['Product'] == product].sort_values('Date')
-    
-    # --- قسم الأرقام الكبرى (Key Metrics) ---
-    avg_sales = p_data['Sales'].mean()
-    current_stock = p_data['Stock'].iloc[-1]
-    S = p_data['Cost_S'].iloc[0]
-    H = p_data['Cost_H'].iloc[0]
-    
-    # معادلة EOQ الهندسية
-    eoq = np.sqrt((2 * avg_sales * 365 * S) / H)
-    
-    # توقع مبيعات غداً (ذكاء اصطناعي بسيط: متوسط متحرك)
-    forecast = p_data['Sales'].rolling(window=2).mean().iloc[-1] * 1.1 # زيادة 10% كتوقع
-    
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("📦 المخزون الحالي", f"{current_stock} قطعة")
-    m2.metric("📈 التوقع لغداً", f"{forecast:.1f} قطعة", delta="10%+")
-    m3.metric("💰 الكمية الاقتصادية (EOQ)", f"{int(eoq)} قطعة")
-    m4.metric("💵 الدخل المتوقع", f"{int(forecast * p_data['Price'].iloc[0])} ريال")
+df = get_default_data()
 
-    # --- قسم الرسوم البيانية التفاعلية ---
-    st.markdown("### 📊 التحليل البصري المتقدم")
-    c1, c2 = st.columns(2)
-    
-    with c1:
-        # رسم بياني تفاعلي للمبيعات
-        fig_sales = px.area(p_data, x='Date', y='Sales', title='حركة السحب اليومية', 
-                            line_shape='spline', color_discrete_sequence=['#3498db'])
-        st.plotly_chart(fig_sales, use_container_width=True)
-        
-    with c2:
-        # رسم بياني للمخزون
-        fig_stock = px.line(p_data, x='Date', y='Stock', title='مستويات المخزون مقابل الوقت',
-                           markers=True, color_discrete_sequence=['#e74c3c'])
-        st.plotly_chart(fig_stock, use_container_width=True)
+# --- القائمة الجانبية للتعديل المباشر ---
+st.sidebar.header("🛠️ تحكم بالسيناريوهات")
+selected_p = st.sidebar.selectbox("اختر المنتج لتجربته:", df['Product'])
 
-    # --- قسم التوصية الذكية (AI Recommendation) ---
-    st.markdown("---")
-    st.subheader("🤖 توصية المساعد الذكي (Ecotrak AI)")
-    
-    days_left = current_stock / avg_sales
-    
-    if days_left < 3:
-        st.error(f"🚨 **تحذير حرج:** المخزون سيفنى خلال {days_left:.1f} أيام. يرجى طلب {int(eoq)} وحدة فوراً من المورد لتجنب خسارة {int(forecast * 3 * p_data['Price'].iloc[0])} ريال.")
-    elif days_left < 7:
-        st.warning(f"⚠️ **تنبيه:** المخزون يكفي لأسبوع فقط. ابدأ بتجهيز أمر الشراء.")
-    else:
-        st.success(f"✅ **حالة ممتازة:** المخزون مستقر ويكفي لمدة {int(days_left)} يوماً. لا داعي للشراء الآن.")
+# استخراج بيانات المنتج المختار
+row = df[df['Product'] == selected_p].iloc[0]
 
-except Exception as e:
-    st.error(f"حدث خطأ تقني: {e}")
+st.sidebar.markdown("---")
+st.sidebar.subheader("📉 تعديل المعطيات (تفاعلي)")
+# هنا السر: أشرطة تحكم لتغيير الأرقام فوراً
+price = st.sidebar.slider("سعر البيع الحالي (ريال)", 10, 2000, int(row['Price']))
+daily_sales = st.sidebar.slider("متوسط السحب اليومي (قطعة)", 1, 100, int(row['Sales']))
+order_cost = st.sidebar.slider("تكلفة الشحن والطلب (S)", 50, 1000, int(row['Cost_S']))
+holding_cost = st.sidebar.slider("تكلفة تخزين القطعة (H)", 1, 100, int(row['Cost_H']))
+current_stock = st.sidebar.number_input("المخزون الحالي في المستودع", value=int(row['Stock']))
+
+# --- الحسابات الهندسية اللحظية ---
+# معادلة EOQ
+eoq = np.sqrt((2 * daily_sales * 365 * order_cost) / holding_cost)
+# التوقع المالي
+daily_revenue = daily_sales * price
+monthly_profit_potential = daily_revenue * 30
+
+# --- عرض النتائج المبهرة ---
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("المخزون الحالي", f"{current_stock} قطعة")
+col2.metric("الطلب السنوي المتوقع", f"{daily_sales * 365} وحدة")
+col3.metric("الكمية الاقتصادية (EOQ)", f"{int(eoq)} قطعة")
+col4.metric("الدخل اليومي المتوقع", f"{daily_revenue} ريال")
+
+st.markdown("---")
+
+# رسم بياني تفاعلي يوضح تأثير السعر على الأرباح (سيناريو تخيلي)
+st.subheader("📊 تحليل حساسية الأرباح مقابل المبيعات")
+scenario_data = pd.DataFrame({
+    'المبيعات اليومية': range(1, 101),
+    'الدخل المتوقع (ريال)': [i * price for i in range(1, 101)]
+})
+fig = px.area(scenario_data, x='المبيعات اليومية', y='الدخل المتوقع (ريال)', 
+              title="كيف سيؤثر تغيير السعر المختار على دخلك؟", color_discrete_sequence=['#00CC96'])
+st.plotly_chart(fig, use_container_width=True)
+
+# --- التوصية الذكية التي تتغير مع الأشرطة ---
+st.subheader("🤖 نصيحة النظام اللحظية")
+days_to_zero = current_stock / daily_sales
+
+if days_to_zero <= 3:
+    st.error(f"🚨 **تحرك الآن!** المخزون سينفد خلال {days_to_zero:.1f} أيام. بناءً على تكلفة الشحن ({order_cost} ريال)، اطلب الآن {int(eoq)} قطعة.")
+elif days_to_zero <= 7:
+    st.warning(f"⚠️ المخزون يكفي لـ {days_to_zero:.1f} أيام فقط. يفضل البدء بإجراءات الطلب.")
+else:
+    st.success(f"✅ الوضع آمن. المخزون يكفي لـ {int(days_to_zero)} يوماً القادمة.")
+
+st.info(f"💡 ملاحظة للمهندسين: تقليل تكلفة الطلب (S) إلى النصف سيقلل الكمية المثالية للطلب بنسبة 30%، مما يزيد من سرعة دوران المخزون.")
