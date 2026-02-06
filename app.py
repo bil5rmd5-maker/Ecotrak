@@ -4,68 +4,71 @@ import numpy as np
 import plotly.express as px
 
 # 1. إعدادات المنصة
-st.set_page_config(page_title="Ecotrak Ultimate", layout="wide", page_icon="💎")
+st.set_page_config(page_title="Ecotrak Ultimate AI", layout="wide", page_icon="💎")
 
-# 2. تهيئة البيانات في ذاكرة الجلسة (Session State)
+# 2. تهيئة البيانات
 if 'products_df' not in st.session_state:
     st.session_state.products_df = pd.DataFrame([
         {'product_name': 'توربينات كهربائية', 'daily_sales': 12, 'stock': 45, 'price': 8000, 'order_cost': 1200, 'holding_cost': 200, 'lead_time': 10},
         {'product_name': 'لوحات تحكم', 'daily_sales': 35, 'stock': 120, 'price': 1500, 'order_cost': 300, 'holding_cost': 45, 'lead_time': 5}
     ])
 
-# --- القائمة الجانبية للتعديل السريع (الميزة الجديدة) ---
+# --- القائمة الجانبية ---
 st.sidebar.title("💎 Ecotrak Control")
+menu = st.sidebar.radio("انتقل إلى:", ["📊 لوحة القراءات", "🎛️ محاكي التأثير الاقتصادي", "➕ إضافة/تعديل أصناف", "🚚 رادار الموردين"])
 
-st.sidebar.subheader("🔄 تعديل سريع للمخزون")
-p_to_edit = st.sidebar.selectbox("اختر المنتج لتعديله:", st.session_state.products_df['product_name'].unique())
-new_stock_val = st.sidebar.number_input("الكمية الجديدة في المستودع:", min_value=0, value=int(st.session_state.products_df.loc[st.session_state.products_df['product_name'] == p_to_edit, 'stock'].values[0]))
-
-if st.sidebar.button("تحديث الكمية الآن"):
-    st.session_state.products_df.loc[st.session_state.products_df['product_name'] == p_to_edit, 'stock'] = new_stock_val
-    st.sidebar.success(f"تم تحديث مخزون {p_to_edit}!")
-
-st.sidebar.markdown("---")
-menu = st.sidebar.radio("انتقل إلى:", ["📊 لوحة القراءات الذكية", "➕ إضافة أصناف جديدة", "🚚 رادر الموردين", "🌱 الاستدامة"])
-
-# --- القائمة 1: لوحة القراءات الذكية ---
-if menu == "📊 لوحة القراءات الذكية":
-    st.header("📊 تحليل حالة المنتج والدعم اللحظي")
-    
-    selected_p = st.selectbox("اختر المنتج لتحليله العادي:", st.session_state.products_df['product_name'].unique(), key="main_select")
+# --- القائمة 1: لوحة القراءات (تم إبقاؤها بسيطة للعرض) ---
+if menu == "📊 لوحة القراءات":
+    st.header("📊 حالة المخزون اللحظية")
+    selected_p = st.selectbox("اختر المنتج:", st.session_state.products_df['product_name'].unique())
     p_data = st.session_state.products_df[st.session_state.products_df['product_name'] == selected_p].iloc[0]
     
-    # الحسابات الهندسية
+    col1, col2, col3 = st.columns(3)
     days_left = p_data['stock'] / p_data['daily_sales']
-    eoq = np.sqrt((2 * p_data['daily_sales'] * 365 * p_data['order_cost']) / p_data['holding_cost'])
-    needed_to_order = int(eoq) if days_left <= p_data['lead_time'] else 0
+    col1.metric("المخزون الحالي", f"{int(p_data['stock'])} قطعة")
+    col2.metric("أيام التغطية", f"{int(days_left)} يوم")
+    col3.metric("الدخل اليومي", f"{int(p_data['daily_sales'] * p_data['price'])} ريال")
     
-    # عرض النتائج
-    m1, m2, m3 = st.columns(3)
-    if days_left <= p_data['lead_time']:
-        m1.error("الحالة: حرجة 🚨 (تحتاج توريد)")
-    else:
-        m1.success("الحالة: آمنة ✅ (مخزون كافٍ)")
+    st.progress(min(days_left/30, 1.0), text="مؤشر استدامة المخزون (30 يوم)")
+
+# --- القائمة 2: محاكي التأثير الاقتصادي (الميزة المطلوبة) ---
+elif menu == "🎛️ محاكي التأثير الاقتصادي":
+    st.header("🎛️ محاكي الحساسية ودراسة الأثر")
+    st.write("هنا يمكنك تجربة كيف تؤثر قراراتك في السعر والتكاليف على أداء المنتج")
+    
+    selected_p = st.selectbox("اختر المنتج للتجربة:", st.session_state.products_df['product_name'].unique())
+    p_data = st.session_state.products_df[st.session_state.products_df['product_name'] == selected_p].iloc[0]
+    
+    col_ctrl, col_res = st.columns([1, 2])
+    
+    with col_ctrl:
+        st.subheader("🛠️ معايير التحكم")
+        # محاكاة تغيير السعر وتأثيره على الطلب (قانون العرض والطلب)
+        sim_price = st.slider("تعديل سعر الوحدة (ريال)", int(p_data['price']*0.5), int(p_data['price']*1.5), int(p_data['price']))
+        sim_order_cost = st.slider("تعديل تكاليف الشحن (S)", 50, 2000, int(p_data['order_cost']))
         
-    m2.metric("المخزون الحالي", f"{int(p_data['stock'])} قطعة")
-    m3.metric("الكمية المطلوبة (EOQ)", f"{needed_to_order} قطعة")
+        # معادلة تخيلية: إذا قل السعر زاد السحب (بنسبة مرونة 1.5)
+        price_change_ratio = sim_price / p_data['price']
+        sim_sales = p_data['daily_sales'] / (price_change_ratio ** 1.5)
+        
+        # إعادة حساب EOQ بناءً على المعايير الجديدة
+        sim_eoq = np.sqrt((2 * sim_sales * 365 * sim_order_cost) / p_data['holding_cost'])
+
+    with col_res:
+        st.subheader("📈 النتائج المتوقعة")
+        r1, r2 = st.columns(2)
+        r1.metric("السحب اليومي الجديد", f"{sim_sales:.1f} قطعة", delta=f"{sim_sales - p_data['daily_sales']:.1f}")
+        r2.metric("الكمية الاقتصادية الجديدة", f"{int(sim_eoq)} قطعة")
+        
+        # رسم بياني للعلاقة بين السعر والطلب
+        prices = np.linspace(p_data['price']*0.5, p_data['price']*1.5, 20)
+        sales_curve = p_data['daily_sales'] / ((prices / p_data['price']) ** 1.5)
+        
+        fig = px.line(x=prices, y=sales_curve, labels={'x':'السعر (ريال)', 'y':'السحب المتوقع'}, title="منحنى مرونة الطلب (السعر مقابل السحب)")
+        fig.add_vline(x=sim_price, line_dash="dash", line_color="red", annotation_text="السعر المختار")
+        st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
-    st.subheader(f"📈 تحليل التوازن لـ {selected_p}")
-    fig = px.bar(x=['المخزون الحالي', 'الكمية الاقتصادية المثالية'], y=[p_data['stock'], eoq], 
-                 color=['الحالي', 'المثالي'], color_discrete_sequence=['#FF4B4B', '#00CC96'])
-    st.plotly_chart(fig, use_container_width=True)
+    st.info(f"💡 **تحليل المستشار:** إذا قمت بخفض السعر إلى **{sim_price} ريال**، سيزيد السحب اليومي بنسبة **{((sim_sales/p_data['daily_sales'])-1)*100:.1f}%**. هذا سيتطلب منك زيادة الكمية المطلوبة في كل شحنة إلى **{int(sim_eoq)} قطعة** لضمان أقل تكلفة تشغيلية.")
 
-# --- القائمة 2: إضافة المنتجات الجديدة ---
-elif menu == "➕ إضافة أصناف جديدة":
-    st.header("➕ تسجيل صنف جديد في النظام")
-    with st.form("new_p"):
-        name = st.text_input("اسم المنتج")
-        c1, c2 = st.columns(2)
-        sales = c1.number_input("متوسط السحب اليومي", min_value=1, value=10)
-        price = c2.number_input("سعر الوحدة", min_value=1, value=500)
-        if st.form_submit_button("حفظ المنتج الجديد"):
-            new_row = {'product_name': name, 'daily_sales': sales, 'stock': 0, 'price': price, 'order_cost': 200, 'holding_cost': 10, 'lead_time': 7}
-            st.session_state.products_df = pd.concat([st.session_state.products_df, pd.DataFrame([new_row])], ignore_index=True)
-            st.success("تمت الإضافة!")
-
-# بقية القوائم تعمل بنفس المنطق السابق...
+# بقية القوائم...
